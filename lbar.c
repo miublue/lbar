@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "-h")) {
             usage(argv[0]);
-            return 1;
+            return 0;
         } else if (!strcmp(argv[i], "-b")) {
             opt_bottom = 1;
         } else if (!strcmp(argv[i], "-f")) {
