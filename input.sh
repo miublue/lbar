@@ -13,5 +13,5 @@ Date() {
 }
 
 while sleep 0.1; do
-    echo " &C $(Window) &R $(Memory) $(Date) "
+    echo " &C $(Window) &R $(Memory) | $(Date) "
 done

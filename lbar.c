@@ -5,27 +5,25 @@
 #include <string.h>
 #include "config.h"
 
-Display *display;
-Window root;
-int screen;
-uint32_t screen_w, screen_h;
-Visual *visual;
-Window window;
-Drawable buffer;
-XftDraw *draw;
-XftFont *font;
-XftColor col_bg, col_fg;
-uint32_t text_y = BARHEIGHT;
-GC gc;
+#define TEXT_MAX 2048
 
-enum {
-    LEFT,
-    RIGHT,
-    CENTER,
-};
+static Display *display;
+static uint32_t screen_w, screen_h;
+static Window root, window;
+static Drawable buffer;
+static Visual *visual;
+static XftDraw *draw;
+static XftFont *font;
+static XftColor col_bg, col_fg;
+static uint32_t text_y = BAR_HEIGHT;
+static GC gc;
+static char *opt_font = FONT, *opt_fg = FOREGROUND, *opt_bg = BACKGROUND;
+static int opt_height = BAR_HEIGHT, opt_bottom = BOTTOM_BAR;
+
+enum { LEFT, RIGHT, CENTER };
 
 XftColor alloc_color(char *col) {
-    Colormap map = DefaultColormap(display, screen);
+    Colormap map = DefaultColormap(display, DefaultScreen(display));
     XftColor ret;
     XftColorAllocName(display, visual, map, col, &ret);
     return ret;
@@ -60,7 +58,7 @@ void parse_status(char *status, size_t status_sz) {
             if (status[i+1] == 'R') text_pos = RIGHT;
             else if (status[i+1] == 'L') text_pos = LEFT;
             else if (status[i+1] == 'C') text_pos = CENTER;
-            i += 1;
+            ++i;
         }
         else {
             switch (text_pos) {
@@ -74,40 +72,68 @@ void parse_status(char *status, size_t status_sz) {
         }
     }
 
-    // so the text doesn't go outside the screen
+    // extra space so text don't go outside the window (lmfao)
     right_buf[right_sz++] = ' ';
     draw_text(left_buf, left_sz, &col_fg, LEFT);
     draw_text(center_buf, center_sz, &col_fg, CENTER);
     draw_text(right_buf, right_sz, &col_fg, RIGHT);
-    XCopyArea(display, buffer, window, gc, 0, 0, screen_w, BARHEIGHT, 0, 0);
+    XCopyArea(display, buffer, window, gc, 0, 0, screen_w, opt_height, 0, 0);
 }
 
-int main() {
+void usage(char *name) {
+    printf("usage: %s [-h|-b|-f font|-F foreground|-B background|-H height]\n", name);
+}
+
+int main(int argc, char **argv) {
     if (!(display = XOpenDisplay(0))) return 1;
     XSetWindowAttributes attr;
+    int screen, text_sz = 0;
+    char text[TEXT_MAX];
+    XEvent event;
+
+    for (int i = 1; i < argc; ++i) {
+        if (!strcmp(argv[i], "-h")) {
+            usage(argv[0]);
+            return 1;
+        } else if (!strcmp(argv[i], "-b")) {
+            opt_bottom = 1;
+        } else if (!strcmp(argv[i], "-f")) {
+            opt_font = argv[++i];
+        } else if (!strcmp(argv[i], "-F")) {
+            opt_fg = argv[++i];
+        } else if (!strcmp(argv[i], "-B")) {
+            opt_bg = argv[++i];
+        } else if (!strcmp(argv[i], "-H")) {
+            opt_height = strtol(argv[++i], NULL, 0);
+        } else {
+            printf("invalid option '%s'\n", argv[i]);
+        }
+    }
 
     screen = DefaultScreen(display);
     visual = DefaultVisual(display, screen);
-    root = RootWindow(display, screen);
     screen_w = XDisplayWidth(display, screen);
     screen_h = XDisplayHeight(display, screen);
+    root = RootWindow(display, screen);
+    col_bg = alloc_color(opt_bg);
+    col_fg = alloc_color(opt_fg);
 
-    col_bg = alloc_color(BACKGROUND);
-    col_fg = alloc_color(FOREGROUND);
+    window = XCreateSimpleWindow(display, root,
+            0, opt_bottom? screen_h-opt_height : 0,
+            screen_w, opt_height, 0, 0, col_bg.pixel);
+    buffer = XCreatePixmap(display, root,
+            screen_w, opt_height, DefaultDepth(display, screen));
 
-    window = XCreateSimpleWindow(display, root, 0, 0, screen_w, BARHEIGHT, 0, 0, col_bg.pixel);
-    buffer = XCreatePixmap(display, root, screen_w, BARHEIGHT, DefaultDepth(display, screen));
-
-    XGCValues gc_value;
-    gc_value.background = col_bg.pixel;
-    gc_value.foreground = col_fg.pixel;
-    gc_value.line_style = LineSolid;
-    gc_value.fill_style = FillSolid;
-    uint64_t gc_mask = GCBackground|GCForeground|GCLineWidth|GCLineStyle;
+    XGCValues gc_value = {
+        .background = col_bg.pixel,
+        .foreground = col_fg.pixel,
+        .line_style = LineSolid,
+        .fill_style = FillSolid,
+    };
+    int gc_mask = GCBackground|GCForeground|GCLineWidth|GCLineStyle;
     gc = XCreateGC(display, window, gc_mask, &gc_value);
-
     draw = XftDrawCreate(display, buffer, visual, DefaultColormap(display, screen));
-    font = XftFontOpenName(display, screen, FONT);
+    font = XftFontOpenName(display, screen, opt_font);
 
     attr.override_redirect = True;
     XChangeWindowAttributes(display, window, CWOverrideRedirect, &attr);
@@ -115,37 +141,29 @@ int main() {
     XSelectInput(display, root, PropertyChangeMask);
     XMapWindow(display, window);
 
-    // get y position to draw text in
-    {
+    { // get y position to draw text in
         XGlyphInfo extents;
         // if characters have different heights, it'll pick whichever is taller (hopefully)
         XftTextExtents8(display, font, "L1O0Tt", 6, &extents);
-        text_y = extents.height + (BARHEIGHT-extents.height)/2;
+        text_y = extents.height + (opt_height-extents.height)/2;
     }
 
-    char text[2048] = {0};
-    int text_sz = 0;
-
-    XEvent event;
     for (;;) {
-        XftDrawRect(draw, &col_bg, 0, 0, screen_w, BARHEIGHT);
-
+        XftDrawRect(draw, &col_bg, 0, 0, screen_w, opt_height);
         int ch = getc(stdin);
         if (ch == '\n' || !ch) {
             parse_status(text, text_sz);
             text_sz = 0;
-        }
-        else {
+        } else {
             text[text_sz++] = ch;
         }
 
         while (XPending(display)) {
             XNextEvent(display, &event);
             if (event.type == Expose) {
-                XCopyArea(display, buffer, window, gc, 0, 0, screen_w, BARHEIGHT, 0, 0);
+                XCopyArea(display, buffer, window, gc, 0, 0, screen_w, opt_height, 0, 0);
                 XSync(display, False);
-            }
-            if (event.type == PropertyNotify && event.xproperty.window == root) {
+            } else if (event.type == PropertyNotify && event.xproperty.window == root) {
                 parse_status(text, text_sz);
             }
         }
