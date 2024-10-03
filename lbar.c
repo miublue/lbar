@@ -6,6 +6,7 @@
 #include "config.h"
 
 #define TEXT_MAX 2048
+#define BLOCKS_MAX 32
 
 static Display *display;
 static uint32_t screen_w, screen_h;
@@ -14,74 +15,87 @@ static Drawable buffer;
 static Visual *visual;
 static XftDraw *draw;
 static XftFont *font;
-static XftColor col_bg, col_fg;
+static XftColor col_bg, col_fg, col_ul;
 static uint32_t text_y = BAR_HEIGHT;
 static GC gc;
-static char *opt_font = FONT, *opt_fg = FOREGROUND, *opt_bg = BACKGROUND;
-static int opt_height = BAR_HEIGHT, opt_bottom = BOTTOM_BAR;
+static char *opt_font = FONT, *opt_fg = FOREGROUND, *opt_bg = BACKGROUND, *opt_ul = UNDERLINE;
+static int opt_height = BAR_HEIGHT, opt_bottom = BOTTOM_BAR, opt_line = LINE_HEIGHT;
 
 enum { LEFT, RIGHT, CENTER };
+struct block {
+    int start, size, line;
+};
 
-XftColor alloc_color(char *col) {
+struct blocks {
+    struct block blocks[BLOCKS_MAX];
+    int off, num;
+};
+
+static struct blocks blocks[3];
+
+static XftColor alloc_color(char *col) {
     Colormap map = DefaultColormap(display, DefaultScreen(display));
     XftColor ret;
     XftColorAllocName(display, visual, map, col, &ret);
     return ret;
 }
 
-void draw_text(char *text, size_t size, XftColor *color, int pos) {
+static XGlyphInfo get_text_extents(char *text, size_t size) {
     XGlyphInfo extents;
     XftTextExtents8(display, font, text, size, &extents);
-    int x = 0;
-    switch (pos) {
-    case RIGHT:
-        x = screen_w - extents.width; break;
-    case CENTER:
-        x = (screen_w - extents.width) / 2; break;
-    default:
-        x = 0; break;
-    }
-
-    XftDrawString8(draw, color, font, x, text_y, text, size);
+    return extents;
 }
 
-void parse_status(char *status, size_t status_sz) {
-    // L code
-    int text_pos = LEFT;
-    char left_buf[status_sz];
-    char right_buf[status_sz];
-    char center_buf[status_sz];
-    size_t left_sz = 0, right_sz = 0, center_sz = 0;
+static void draw_text(char *text, size_t size, XftColor *color, int pos, int off, int line) {
+    XGlyphInfo ex = get_text_extents(text, size);
+    int x = pos == RIGHT? (screen_w-ex.width) : pos == CENTER? ((screen_w-ex.width)/2) : 0;
+    if (line) XftDrawRect(draw, &col_ul, x+off, opt_height-opt_line, ex.width, opt_line);
+    XftDrawString8(draw, color, font, x+off, text_y, text, size);
+}
 
+static void draw_right_block(char *text) {
+    for (int i = blocks[RIGHT].num-1; i >= 0; --i) {
+        struct block blk = blocks[RIGHT].blocks[i];
+        draw_text(text+blk.start, blk.size, &col_fg, RIGHT, blocks[RIGHT].off, blk.line);
+        XGlyphInfo ex = get_text_extents(text+blk.start, blk.size);
+        blocks[RIGHT].off -= ex.width;
+    }
+}
+
+static void draw_block(int n, char *text) {
+    // XXX: center blocks are not being offset properly
+    if (n == RIGHT) return draw_right_block(text);
+    for (int i = 0; i < blocks[n].num; ++i) {
+        struct block blk = blocks[n].blocks[i];
+        draw_text(text+blk.start, blk.size, &col_fg, n, blocks[n].off, blk.line);
+        XGlyphInfo ex = get_text_extents(text+blk.start, blk.size);
+        blocks[n].off += ex.width;
+    }
+}
+
+static void parse_status(char *status, size_t status_sz) {
+    for (int i = 0; i < 3; ++i) blocks[i].off = blocks[i].num = 0;
+    struct block blk = {0};
+    int pos = LEFT;
     for (int i = 0; i < status_sz; ++i) {
         if (status[i] == '&') {
-            if (status[i+1] == 'R') text_pos = RIGHT;
-            else if (status[i+1] == 'L') text_pos = LEFT;
-            else if (status[i+1] == 'C') text_pos = CENTER;
-            ++i;
-        }
-        else {
-            switch (text_pos) {
-            case RIGHT:
-                right_buf[right_sz++] = status[i]; break;
-            case CENTER:
-                center_buf[center_sz++] = status[i]; break;
-            default:
-                left_buf[left_sz++] = status[i]; break;
-            }
+            blocks[pos].blocks[blocks[pos].num++] = blk;
+            if (status[++i] == 'U') blk.line = !blk.line;
+            else pos = status[i] == 'R'? RIGHT : status[i] == 'C'? CENTER : LEFT;
+            blk.start = i+1;
+            blk.size = 0;
+        } else {
+            ++blk.size;
         }
     }
 
-    // extra space so text don't go outside the window (lmfao)
-    right_buf[right_sz++] = ' ';
-    draw_text(left_buf, left_sz, &col_fg, LEFT);
-    draw_text(center_buf, center_sz, &col_fg, CENTER);
-    draw_text(right_buf, right_sz, &col_fg, RIGHT);
+    if (blk.size) blocks[pos].blocks[blocks[pos].num++] = blk;
+    for (int i = 0; i < 3; ++i) draw_block(i, status);
     XCopyArea(display, buffer, window, gc, 0, 0, screen_w, opt_height, 0, 0);
 }
 
-void usage(char *name) {
-    printf("usage: %s [-h|-b|-f font|-F foreground|-B background|-H height]\n", name);
+static void usage(char *name) {
+    printf("usage: %s [-h|-b|-f font|-F foreground|-B background|-U underline|-u size|-H height]\n", name);
 }
 
 int main(int argc, char **argv) {
@@ -103,8 +117,12 @@ int main(int argc, char **argv) {
             opt_fg = argv[++i];
         } else if (!strcmp(argv[i], "-B")) {
             opt_bg = argv[++i];
+        } else if (!strcmp(argv[i], "-U")) {
+            opt_ul = argv[++i];
         } else if (!strcmp(argv[i], "-H")) {
             opt_height = strtol(argv[++i], NULL, 0);
+        } else if (!strcmp(argv[i], "-u")) {
+            opt_line = strtol(argv[++i], NULL, 0);
         } else {
             printf("invalid option '%s'\n", argv[i]);
         }
@@ -117,6 +135,7 @@ int main(int argc, char **argv) {
     root = RootWindow(display, screen);
     col_bg = alloc_color(opt_bg);
     col_fg = alloc_color(opt_fg);
+    col_ul = alloc_color(opt_ul);
 
     window = XCreateSimpleWindow(display, root,
             0, opt_bottom? screen_h-opt_height : 0,

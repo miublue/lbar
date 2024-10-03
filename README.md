@@ -3,5 +3,5 @@ tiny status bar for [lwm](https://github.com/miublue/lwm) that i made to learn h
 pipe text ending in '\n' to lbar
 
 ## formatting
-&L, &C and &R draws text on the left, center and right sides of the bar respectively
+&U toggles underline. &L, &C and &R draws text on the left, center and right sides of the bar respectively.
 
