@@ -5,5 +5,5 @@ pipe text ending in '\n' to lbar, format with '\r' followed by a special charact
 ## formatting
 \r[U|L|C|R]  
 \rU toggles underline. \rL, \rC and \rR draws text on the left, center and right sides of the bar respectively.
-example script can be found [here](/blob/main/input.sh)
+example script can be found [here](/input.sh)
 
