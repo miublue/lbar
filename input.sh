@@ -13,5 +13,5 @@ Date() {
 }
 
 while sleep 0.1; do
-    echo "&L&U $(Memory)  &U &C $(Window) &R&U $(Date)  &U"
+    echo -e "\rL\rU $(Memory)  \rU \rC $(Window) \rR\rU $(Date)  \rU"
 done

@@ -78,7 +78,7 @@ static void parse_status(char *status, size_t status_sz) {
     struct block blk = {0};
     int pos = LEFT;
     for (int i = 0; i < status_sz; ++i) {
-        if (status[i] == '&') {
+        if (status[i] == '\r') {
             blocks[pos].blocks[blocks[pos].num++] = blk;
             if (status[++i] == 'U') blk.line = !blk.line;
             else pos = status[i] == 'R'? RIGHT : status[i] == 'C'? CENTER : LEFT;
