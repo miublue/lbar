@@ -1,4 +1,4 @@
-#/usr/bin/bash
+#!/usr/bin/bash
 
 Window() {
     echo -n $(xdotool getwindowname $(xdotool getwindowfocus))
