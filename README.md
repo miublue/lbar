@@ -1,5 +1,5 @@
 # lbar
-Tiny X11 status bar i made for for [lwm](https://github.com/miublue/lwm) to learn how to use Xft.
+Tiny X11 status bar that i made for [lwm](https://github.com/miublue/lwm) to learn how to use Xft.
 
 ## Installing
 Compile with:
