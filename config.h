@@ -1,5 +1,5 @@
-#ifndef _CONFIG_H
-#define _CONFIG_H
+#ifndef __CONFIG_H
+#define __CONFIG_H
 
 #define BOTTOM_BAR 0
 #define BAR_HEIGHT 18
