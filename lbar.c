@@ -143,6 +143,12 @@ int main(int argc, char **argv) {
     buffer = XCreatePixmap(display, root,
             screen_w, opt_height, DefaultDepth(display, screen));
 
+    attr.override_redirect = True;
+    XChangeWindowAttributes(display, window, CWOverrideRedirect, &attr);
+    XSelectInput(display, window, ExposureMask);
+    XSelectInput(display, root, PropertyChangeMask);
+    XMapWindow(display, window);
+
     XGCValues gc_value = {
         .background = col_bg.pixel,
         .foreground = col_fg.pixel,
@@ -153,12 +159,6 @@ int main(int argc, char **argv) {
     gc = XCreateGC(display, window, gc_mask, &gc_value);
     draw = XftDrawCreate(display, buffer, visual, DefaultColormap(display, screen));
     font = XftFontOpenName(display, screen, opt_font);
-
-    attr.override_redirect = True;
-    XChangeWindowAttributes(display, window, CWOverrideRedirect, &attr);
-    XSelectInput(display, window, ExposureMask);
-    XSelectInput(display, root, PropertyChangeMask);
-    XMapWindow(display, window);
 
     { // get y position to draw text in
         XGlyphInfo extents;
