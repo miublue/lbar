@@ -106,12 +106,12 @@ int main(int argc, char **argv) {
     XEvent event;
 
     for (int i = 1; i < argc; ++i) {
-        if (!strcmp(argv[i], "-h")) {
+		if (!strcmp(argv[i], "-b")) {
+            opt_bottom = 1;
+        } else if (!strcmp(argv[i], "-h") || i + 1 == argc) {
             usage(argv[0]);
             return 0;
-        } else if (!strcmp(argv[i], "-b")) {
-            opt_bottom = 1;
-        } else if (!strcmp(argv[i], "-f")) {
+        } else if (!strcmp(argv[i], "-f")) { // options that require an arg
             opt_font = argv[++i];
         } else if (!strcmp(argv[i], "-F")) {
             opt_fg = argv[++i];
