@@ -42,7 +42,13 @@ static XftColor alloc_color(char *col) {
 
 static XGlyphInfo get_text_extents(char *text, size_t size) {
     XGlyphInfo extents;
-    XftTextExtentsUtf8(display, font, text, size, &extents);
+    char buf[size];
+    memcpy(buf, text, size);
+    for (int i = 0; i < size; ++i) {
+        // replace spaces with some wide character
+        if (buf[i] == ' ') buf[i] = 'W';
+    }
+    XftTextExtentsUtf8(display, font, buf, size, &extents);
     return extents;
 }
 
