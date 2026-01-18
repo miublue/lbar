@@ -23,13 +23,13 @@ Run with:
 Simply edit `config.h` and recompile. Alternatively, change values via command-line options:
 ```
 lbar [-h|-b|-f font|-u size|-H height|-F foreground|-B background|-U underline]
-    -h         show help
-    -b         place bar at the bottom of the screen
-    -f font    set bar font
-    -u size    set bar underline height in pixels
-    -H height  set bar height in pixels
-    -F #RRGGBB set bar text color
-    -B #RRGGBB set bar background color
-    -U #RRGGBB set bar underline color
+    -h          show help
+    -b          place bar at the bottom of the screen
+    -f font     set bar font
+    -u size     set bar underline height in pixels
+    -H height   set bar height in pixels
+    -F #RRGGBB  set bar text color
+    -B #RRGGBB  set bar background color
+    -U #RRGGBB  set bar underline color
 ```
 

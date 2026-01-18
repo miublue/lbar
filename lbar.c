@@ -102,6 +102,14 @@ static void parse_status(char *status, size_t status_sz) {
 
 static void usage(char *name) {
     printf("usage: %s [-h|-b|-f font|-u size|-H height|-F foreground|-B background|-U underline]\n", name);
+    printf("    -h          show help\n");
+    printf("    -b          place bar at the bottom of the screen\n");
+    printf("    -f font     set bar font\n");
+    printf("    -u size     set bar underline height in pixels\n");
+    printf("    -H height   set bar height in pixels\n");
+    printf("    -F #RRGGBB  set bar text color\n");
+    printf("    -B #RRGGBB  set bar background color\n");
+    printf("    -U #RRGGBB  set bar underline color\n");
 }
 
 int main(int argc, char **argv) {
