@@ -101,7 +101,7 @@ static void parse_status(char *status, size_t status_sz) {
 }
 
 static void usage(char *name) {
-    printf("usage: %s [-h|-b|-f font|-F foreground|-B background|-U underline|-u size|-H height]\n", name);
+    printf("usage: %s [-h|-b|-f font|-u size|-H height|-F foreground|-B background|-U underline]\n", name);
 }
 
 int main(int argc, char **argv) {
@@ -119,16 +119,16 @@ int main(int argc, char **argv) {
             return 0;
         } else if (!strcmp(argv[i], "-f")) { // options that require an arg
             opt_font = argv[++i];
+        } else if (!strcmp(argv[i], "-u")) {
+            opt_line = strtol(argv[++i], NULL, 0);
+        } else if (!strcmp(argv[i], "-H")) {
+            opt_height = strtol(argv[++i], NULL, 0);
         } else if (!strcmp(argv[i], "-F")) {
             opt_fg = argv[++i];
         } else if (!strcmp(argv[i], "-B")) {
             opt_bg = argv[++i];
         } else if (!strcmp(argv[i], "-U")) {
             opt_ul = argv[++i];
-        } else if (!strcmp(argv[i], "-H")) {
-            opt_height = strtol(argv[++i], NULL, 0);
-        } else if (!strcmp(argv[i], "-u")) {
-            opt_line = strtol(argv[++i], NULL, 0);
         } else {
             printf("invalid option '%s'\n", argv[i]);
         }
