@@ -2,11 +2,11 @@
 #define __CONFIG_H
 
 #define BOTTOM_BAR 0
-#define BAR_HEIGHT 18
-#define LINE_HEIGHT 2
-#define BACKGROUND "#101010"
+#define BAR_HEIGHT 30
+#define LINE_HEIGHT 3
+#define BACKGROUND "#000000"
 #define FOREGROUND "#eeeeee"
-#define UNDERLINE  "#ff5599"
-#define FONT "Iosevka:size=10"
+#define UNDERLINE  "#eeeeee"
+#define FONT "Terminus:pixelsize=20"
 
 #endif
