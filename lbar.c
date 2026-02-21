@@ -48,7 +48,7 @@ static XGlyphInfo get_text_extents(char *text, size_t size) {
         // replace spaces with some wide character
         if (buf[i] == ' ') buf[i] = 'W';
     }
-    XftTextExtentsUtf8(display, font, buf, size, &extents);
+    XftTextExtentsUtf8(display, font, (const unsigned char*)buf, size, &extents);
     return extents;
 }
 
@@ -56,7 +56,7 @@ static void draw_text(char *text, size_t size, XftColor *color, int pos, int off
     XGlyphInfo ex = get_text_extents(text, size);
     int x = pos == RIGHT? (screen_w-ex.width) : pos == CENTER? ((screen_w-ex.width)/2) : 0;
     if (line) XftDrawRect(draw, &col_ul, x+off, opt_height-opt_line, ex.width, opt_line);
-    XftDrawStringUtf8(draw, color, font, x+off, text_y, text, size);
+    XftDrawStringUtf8(draw, color, font, x+off, text_y, (const unsigned char*)text, size);
 }
 
 static void draw_right_block(char *text) {
@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
     { // get y position to draw text in
         XGlyphInfo extents;
         // if characters have different heights, it'll pick whichever is taller (hopefully)
-        XftTextExtentsUtf8(display, font, "L1O0Tt", 6, &extents);
+        XftTextExtentsUtf8(display, font, (const unsigned char*)"L1O0Tt", 6, &extents);
         text_y = extents.height + (opt_height-extents.height)/2;
     }
 
