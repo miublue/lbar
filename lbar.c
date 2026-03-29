@@ -19,7 +19,8 @@ static XftColor col_bg, col_fg, col_ul;
 static uint32_t text_y = BAR_HEIGHT;
 static GC gc;
 static char *opt_font = FONT, *opt_fg = FOREGROUND, *opt_bg = BACKGROUND, *opt_ul = UNDERLINE;
-static int opt_height = BAR_HEIGHT, opt_bottom = BOTTOM_BAR, opt_line = LINE_HEIGHT;
+static int opt_bottom = BOTTOM_BAR, opt_line = LINE_HEIGHT;
+static struct { int x, y, w, h; } geom;
 
 enum { LEFT, RIGHT, CENTER };
 struct block {
@@ -54,8 +55,8 @@ static XGlyphInfo get_text_extents(char *text, size_t size) {
 
 static void draw_text(char *text, size_t size, XftColor *color, int pos, int off, int line) {
     XGlyphInfo ex = get_text_extents(text, size);
-    int x = pos == RIGHT? (screen_w-ex.width) : pos == CENTER? ((screen_w-ex.width)/2) : 0;
-    if (line) XftDrawRect(draw, &col_ul, x+off, opt_height-opt_line, ex.width, opt_line);
+    int x = pos == RIGHT? (geom.w-ex.width) : pos == CENTER? ((geom.w-ex.width)/2) : 0;
+    if (line) XftDrawRect(draw, &col_ul, x+off, geom.h-opt_line, ex.width, opt_line);
     XftDrawStringUtf8(draw, color, font, x+off, text_y, (const unsigned char*)text, size);
 }
 
@@ -97,16 +98,16 @@ static void parse_status(char *status, size_t status_sz) {
 
     if (blk.size) blocks[pos].blocks[blocks[pos].num++] = blk;
     for (int i = 0; i < 3; ++i) draw_block(i, status);
-    XCopyArea(display, buffer, window, gc, 0, 0, screen_w, opt_height, 0, 0);
+    XCopyArea(display, buffer, window, gc, 0, 0, geom.w, geom.h, 0, 0);
 }
 
 static void usage(char *name) {
-    printf("usage: %s [-h|-b|-f font|-u size|-H height|-F foreground|-B background|-U underline]\n", name);
+    printf("usage: %s [-h|-b|-f font|-u size|-g geom|-F foreground|-B background|-U underline]\n", name);
     printf("    -h          show help\n");
     printf("    -b          place bar at the bottom of the screen\n");
     printf("    -f font     set bar font\n");
     printf("    -u size     set bar underline height in pixels\n");
-    printf("    -H height   set bar height in pixels\n");
+    printf("    -g geom     set bar geometry {width}x{height}+{xoffset}+{yoffset}\n");
     printf("    -F #RRGGBB  set bar text color\n");
     printf("    -B #RRGGBB  set bar background color\n");
     printf("    -U #RRGGBB  set bar underline color\n");
@@ -119,6 +120,14 @@ int main(int argc, char **argv) {
     char text[TEXT_MAX];
     XEvent event;
 
+    screen = DefaultScreen(display);
+    visual = DefaultVisual(display, screen);
+    screen_w = XDisplayWidth(display, screen);
+    screen_h = XDisplayHeight(display, screen);
+    root = RootWindow(display, screen);
+
+    geom.x = 0, geom.y = 0, geom.w = screen_w, geom.h = BAR_HEIGHT;
+
     for (int i = 1; i < argc; ++i) {
 		if (!strcmp(argv[i], "-b")) {
             opt_bottom = 1;
@@ -129,8 +138,8 @@ int main(int argc, char **argv) {
             opt_font = argv[++i];
         } else if (!strcmp(argv[i], "-u")) {
             opt_line = strtol(argv[++i], NULL, 0);
-        } else if (!strcmp(argv[i], "-H")) {
-            opt_height = strtol(argv[++i], NULL, 0);
+        } else if (!strcmp(argv[i], "-g")) {
+            sscanf(argv[++i], "%dx%d+%d+%d", &geom.w, &geom.h, &geom.x, &geom.y);
         } else if (!strcmp(argv[i], "-F")) {
             opt_fg = argv[++i];
         } else if (!strcmp(argv[i], "-B")) {
@@ -142,20 +151,17 @@ int main(int argc, char **argv) {
         }
     }
 
-    screen = DefaultScreen(display);
-    visual = DefaultVisual(display, screen);
-    screen_w = XDisplayWidth(display, screen);
-    screen_h = XDisplayHeight(display, screen);
-    root = RootWindow(display, screen);
+    if (geom.w <= 0) geom.w = screen_w+geom.w;
+    if (geom.h <= 0) geom.h = BAR_HEIGHT;
     col_bg = alloc_color(opt_bg);
     col_fg = alloc_color(opt_fg);
     col_ul = alloc_color(opt_ul);
 
     window = XCreateSimpleWindow(display, root,
-            0, opt_bottom? screen_h-opt_height : 0,
-            screen_w, opt_height, 0, 0, col_bg.pixel);
+            geom.x, opt_bottom? screen_h-geom.h-geom.y : geom.y,
+            geom.w, geom.h, 0, 0, col_bg.pixel);
     buffer = XCreatePixmap(display, root,
-            screen_w, opt_height, DefaultDepth(display, screen));
+            geom.w, geom.h, DefaultDepth(display, screen));
 
     attr.override_redirect = True;
     XChangeWindowAttributes(display, window, CWOverrideRedirect, &attr);
@@ -178,11 +184,11 @@ int main(int argc, char **argv) {
         XGlyphInfo extents;
         // if characters have different heights, it'll pick whichever is taller (hopefully)
         XftTextExtentsUtf8(display, font, (const unsigned char*)"L1O0Tt", 6, &extents);
-        text_y = extents.height + (opt_height-extents.height)/2;
+        text_y = extents.height + (geom.h-extents.height)/2;
     }
 
     for (;;) {
-        XftDrawRect(draw, &col_bg, 0, 0, screen_w, opt_height);
+        XftDrawRect(draw, &col_bg, 0, 0, geom.w, geom.h);
         int ch = getc(stdin);
         if (ch == '\n' || !ch) {
             parse_status(text, text_sz);
@@ -194,7 +200,7 @@ int main(int argc, char **argv) {
         while (XPending(display)) {
             XNextEvent(display, &event);
             if (event.type == Expose) {
-                XCopyArea(display, buffer, window, gc, 0, 0, screen_w, opt_height, 0, 0);
+                XCopyArea(display, buffer, window, gc, 0, 0, geom.w, geom.h, 0, 0);
                 XSync(display, False);
             } else if (event.type == PropertyNotify && event.xproperty.window == root) {
                 parse_status(text, text_sz);
