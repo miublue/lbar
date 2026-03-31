@@ -22,7 +22,7 @@ Run with:
 ## Configuring
 Simply edit `config.h` and recompile. Alternatively, change values via command-line options:
 ```
-lbar [-h|-b|-f font|-u size|-H height|-F foreground|-B background|-U underline]
+lbar [-h|-b|-f font|-u size|-g geom|-F foreground|-B background|-U underline]
     -h          show help
     -b          place bar at the bottom of the screen
     -f font     set bar font
